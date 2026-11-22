@@ -19,10 +19,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        python: ["3.9", "3.12", "3.13"]
         include:
-          # macOS 只跑一个版本，省额度
+          # ubuntu-latest 已升到 26.04，官方工具链不再提供 3.9；
+          # 所以 3.9 只在 windows-latest 上验证。
+          - os: ubuntu-latest
+            python: "3.12"
+          - os: ubuntu-latest
+            python: "3.13"
+          - os: windows-latest
+            python: "3.9"
+          - os: windows-latest
+            python: "3.12"
+          - os: windows-latest
+            python: "3.13"
           - os: macos-latest
             python: "3.12"
 
@@ -85,10 +94,5 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev,art]"
-      - name: Regenerate default art and assert byte-identical
-        run: |
-          python -m sgs_zhanbao.gen_default_art
-          git diff --exit-code src/sgs_zhanbao/data/art/v2 \
-            || (echo "::error::自带素材与脚本输出不一致，请提交重新生成的素材" && exit 1)
-      - name: Art tests
-        run: pytest tests/test_gen_default_art.py tests/test_build_art.py -v
+      - name: Art tests（接缝 0 色差 + mid 列内恒定）
+        run: pytest tests/test_build_art.py -v

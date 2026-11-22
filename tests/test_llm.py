@@ -105,6 +105,7 @@ class TestContentExtraction:
 
 class TestChatHttpErrors:
     def test_401_not_retried(self, monkeypatch):
+        import io
         import urllib.error
 
         from sgs_zhanbao.config import Config
@@ -114,7 +115,10 @@ class TestChatHttpErrors:
 
         def boom(req, timeout):  # noqa: ARG001
             calls["n"] += 1
-            raise urllib.error.HTTPError("u", 401, "unauthorized", {}, None)
+            # fp 必须是文件样对象：Python 3.9 的 HTTPError.read() 不接受 None
+            raise urllib.error.HTTPError(
+                "u", 401, "unauthorized", {}, io.BytesIO(b"bad key")
+            )
 
         monkeypatch.setattr("urllib.request.urlopen", boom)
         with pytest.raises(LLMError, match="HTTP 401"):

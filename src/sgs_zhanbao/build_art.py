@@ -138,7 +138,9 @@ def build(src_dir: Path, dst_dir: Path) -> int:
     Image.fromarray(np.clip(np.rint(band), 0, 255).astype(np.uint8)).save(
         dst_dir / "mid.png", optimize=True
     )
-    Image.fromarray(np.clip(np.rint(tail_rgba), 0, 255).astype(np.uint8), "RGBA").save(
+    # 数组是 (H, W, 4)，Pillow 能从形状推断出 RGBA；显式传 mode 在
+    # Pillow 13 已弃用，在 CI 的严格警告模式下会失败。
+    Image.fromarray(np.clip(np.rint(tail_rgba), 0, 255).astype(np.uint8)).save(
         dst_dir / "tail.png", optimize=True
     )
 

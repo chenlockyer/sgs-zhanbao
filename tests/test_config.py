@@ -159,12 +159,26 @@ class TestApiKey:
 
 
 class TestFontDiscovery:
-    def test_finds_kaiti_on_windows(self):
-        if os.name != "nt":
-            pytest.skip("仅在 Windows 上验证")
+    def test_returns_path_or_none(self):
+        """不能假设 CI 机器装了楷体：找到就必须是文件，找不到返回 None。
+
+        早先写成「Windows 上必须找到」，结果 GitHub 的 Windows runner 没装楷体，
+        CI 直接红 —— 那是环境差异，不是代码 bug。
+        """
         font = find_system_kaiti()
-        assert font is not None
-        assert font.is_file()
+        if font is not None:
+            assert font.is_file()
+
+    def test_finds_expected_font_in_custom_dir(self, tmp_path: Path, monkeypatch):
+        """在临时字体目录里放一个楷体，验证能被找到（不依赖系统环境）。"""
+        fonts = tmp_path / "Fonts"
+        fonts.mkdir()
+        fake_font = fonts / "simkai.ttf"
+        fake_font.write_bytes(b"\x00\x01\x00\x00")
+        monkeypatch.setattr(config, "_FONT_CANDIDATES", ("simkai.ttf",))
+        monkeypatch.setenv("WINDIR", str(tmp_path))
+        monkeypatch.delenv("LOCALAPPDATA", raising=False)
+        assert find_system_kaiti() == fake_font
 
     def test_returns_none_when_nothing_found(self, monkeypatch):
         monkeypatch.setattr(config, "_FONT_CANDIDATES", ())

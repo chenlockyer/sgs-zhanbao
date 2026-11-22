@@ -159,7 +159,8 @@ class Palette:
        （只想改一两个色时用这个，不用写整套）
 
     注意 ``paper`` 是页底色，接缝检测靠它判断「有没有漏色」。
-    换素材配色时要同步 ``gen_default_art --paper``，否则接缝处颜色对不上。
+    换素材配色时要同步改素材本身（``scripts/build_art.py``），
+    否则接缝处颜色对不上。
     """
 
     headline: str = "#c2405f"          # 主标题、比分数字
@@ -283,9 +284,8 @@ class Config:
     def art_dir(self) -> Path:
         """版式三件套（head/mid/tail.png）所在目录。
 
-        默认用包内那份 —— 由 ``gen_default_art.py`` 纯代码绘制，属本项目原创。
-        想换成自己的素材（改配色或整套美术），用 ``SGS_ART`` / ``--art`` 指过去即可，
-        不用重新打包。换进去的第三方素材授权由使用者自己负责，见 NOTICE。
+        默认用包内那份。想换成自己的素材，用 ``SGS_ART`` / ``--art`` 指过去即可，
+        不用重新打包。换进去的素材授权由使用者自己负责，见 NOTICE。
         """
         if self.art_path:
             return Path(self.art_path)

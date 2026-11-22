@@ -12,7 +12,7 @@
 
 ![成品示例](examples/example.png)
 
-> 版式素材由 `gen_default_art.py` 纯代码绘制，属本项目原创，随 MIT 一起分发。
+> 版式素材随仓库提供，可直接使用；它的授权范围与代码不同，见 [NOTICE](NOTICE)。
 > 想换风格 / 换配色看 [docs/版式与素材.md](docs/版式与素材.md)。
 
 ---
@@ -115,7 +115,6 @@ src/sgs_zhanbao/
   models.py         战报数据结构
   render.py         ReportData → HTML → PNG（固定头 / 拉伸正文 / 固定尾）
   build_art.py      从三张源图重建版式切片
-  gen_default_art.py 生成仓库自带的代码绘制默认素材
   record.py         WASAPI 环回录音
   asr.py            SenseVoice 离线转写
   stream_asr.py     流式实时转写
@@ -195,12 +194,11 @@ ruff check src tests scripts
 
 ## 授权与素材说明
 
-* **代码与版式素材**：MIT，见 [LICENSE](LICENSE)。
-  自带素材由 `gen_default_art.py` 纯代码绘制（几何图形 + 渐变），属本项目原创。
+* **代码**：MIT，见 [LICENSE](LICENSE)
+* **版式素材**：随仓库提供，MIT 授权，可自由使用（见 [NOTICE](NOTICE)）
 * **字体**：仓库不含任何字体文件；渲染时用你本机已安装的楷体，
   所以商用前请自行确认所用字体的授权范围
-* **换素材**：换成官方宣传图、他人插画等第三方素材时，授权由你自己负责
 
-完整分层说明见 [NOTICE](NOTICE)。
+完整说明见 [NOTICE](NOTICE)。
 
 本项目与《三国杀》官方没有任何关联。

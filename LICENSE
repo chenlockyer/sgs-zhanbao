@@ -22,5 +22,4 @@ SOFTWARE.
 
 ---
 
-本 LICENSE 覆盖仓库内的代码与版式素材。素材由 `gen_default_art.py` 纯代码绘制，
-属本项目原创。字体文件不随仓库分发，见 NOTICE。
+本 LICENSE 覆盖仓库内的代码与版式素材。字体文件不随仓库分发，见 NOTICE。
