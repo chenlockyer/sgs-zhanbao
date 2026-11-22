@@ -173,27 +173,57 @@ class TestRenderPng:
             assert im.width == 928
 
     def test_no_seam_band_in_output(self, report: ReportData, tmp_path: Path):
-        """正文与尾图接缝处不应出现页底色横线。
+        """接缝处绝不能漏出一整行页底色（那就是画面上的一条横线）。
 
-        做法：正文区左右两侧应当是连续的花框竖线（不该被截断）。
-        接缝一旦漏出，左右两条竖线会同时断掉——这比逐行查颜色可靠，
-        因为正文纸面本身也接近页底色。
+        判据不猜「哪一列是花框」——不同素材边框位置不一样。它直接查缝隙的
+        特征签名：漏出来的那一行**整行都是页底色**，连花框立柱的位置也是；
+        正常行总有边框/装饰偏离页底色。实测正常 ≤0.002、注入 1px 缝 =1.000，
+        所以这个阈值有极大余量。
+
+        渲染时 ``_fix_seam()`` 已经从布局层保证间距为 0，这里是第二道防线：
+        万一将来 CSS 改动让 BFC 挡不住塌陷，这条测试会红。
         """
         out = render_report(report, output_path=tmp_path / "seam.png")
+        import numpy as np
         from PIL import Image
 
+        from sgs_zhanbao.config import Config
+        from sgs_zhanbao.render import _png_size, art_dir
+
+        art = art_dir()
+        head_h = _png_size(art / "head.png")[1]
+        tail_h = _png_size(art / "tail.png")[1]
+        # 页底色来自配置，不能写死（换肤后写死的值会失效）
+        paper = np.array(
+            [int(Config().palette.paper.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4)],
+            dtype=np.float32,
+        )
+
         with Image.open(out) as im:
-            rgb = im.convert("RGB")
-            w, h = rgb.size
-            # 左侧花框内缘（设计稿 x≈30，2x 后 ≈60）应当始终是彩色（非纯白）
-            x = round(w * 0.032)
-            gaps = []
-            for y in range(int(h * 0.35), int(h * 0.75)):
-                r, g, b = rgb.getpixel((x, y))
-                if r > 250 and g > 250 and b > 250:
-                    gaps.append(y)
-            # 允许极少数行（花角留白），但不能出现连续断层
-            assert len(gaps) < 20, f"左侧花框有 {len(gaps)} 行空白，疑似接缝"
+            a = np.asarray(im.convert("RGB"), dtype=np.float32)
+        w = a.shape[1]
+        scale = w / 928.0
+        seams = {
+            "头→正文": int(round(head_h * scale)),
+            "正文→尾": a.shape[0] - int(round(tail_h * scale)),
+        }
+
+        def paper_frac(y: int) -> float:
+            """该行里「等于页底色」的像素占比（去掉两侧边缘抗锯齿）。"""
+            row = a[y, 8 : w - 8]
+            return float((np.abs(row - paper).max(axis=1) <= 1).mean())
+
+        # 这条断言自带可验证性：要通过，交界附近每一行都必须有 ≥95% 的像素
+        # **不等于**页底色（花框立柱、装饰线就是这些像素）。
+        # 也就是说「判据能识别缝隙」是「测试通过」的必要条件 —— 如果素材在
+        # 交界处本来就是一片页底色，worst 会直接接近 1.0，测试立刻红，
+        # 而不是空过。实测默认素材：正常 ≈0.002，人为注入 1px 缝 =1.000。
+        for name, y in seams.items():
+            worst = max(paper_frac(j) for j in range(y - 2, y + 3))
+            assert worst < 0.05, (
+                f"{name} 交界第 {y} 行附近整行页底色占比 {worst:.3f}，"
+                f"画面会有一条横贯的横线"
+            )
 
     def test_busy_target_falls_back(self, report: ReportData, tmp_path: Path, monkeypatch):
         """目标文件被占用时应另存，而不是崩掉。

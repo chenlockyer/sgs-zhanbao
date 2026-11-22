@@ -107,10 +107,11 @@ class TestPackagedDefault:
         assert float(np.abs(mid[-1] - tail[0][:, :3]).mean()) < 1e-4
         assert float(mid.std(axis=0).mean()) < 1e-4
 
-    def test_contains_no_third_party_artwork(self):
-        """默认素材必须是纯代码绘制：不含官方立绘，才能随 MIT 分发。
+    def test_art_is_script_generated(self):
+        """默认素材必须由脚本生成：与重新生成的结果字节一致。
 
-        校验方式：与脚本重新生成的结果字节一致。
+        这条同时保证两件事：素材是原创可分发的（不是借用的美术），
+        以及改了 gen_default_art.py 之后不会忘了重生成提交。
         """
         import tempfile
 

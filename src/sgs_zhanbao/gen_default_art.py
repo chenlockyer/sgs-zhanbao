@@ -1,12 +1,12 @@
 """生成一套**纯代码绘制**的默认版式素材（head / mid / tail）。
 
-为什么需要它
-------------
-本仓库默认自带的版式素材是从三国杀官方宣传图衍生的，版权不在我们手上，
-不能随 MIT 代码一起分发。所以仓库里**只提交这套代码生成的中性素材**：
-粉白渐变 + 双线花框 + 云海收口，没有任何第三方美术、没有角色立绘。
+为什么这么设计
+--------------
+版式素材要能随代码一起分发，就不能借用别人的美术。所以仓库里提交的这一份
+**完全由这个脚本画出来**：粉白渐变 + 双线花框 + 几何徽记 + 五瓣花，
+所有形状都是参数算出来的，属本项目原创（MIT）。
 
-它和真实素材遵守同一套约束，因此渲染器不用改一行：
+它和任何自定义素材遵守同一套约束，因此渲染器不用改一行：
 
 * 三件套都是 928 宽
 * ``mid[0]`` 逐像素等于 ``head[-1]``，``mid[-1]`` 逐像素等于 ``tail[0]`` → 接缝 0 色差
@@ -16,19 +16,19 @@
 --------------
 ::
 
-    # 方式一：直接改这套默认素材的配色
-    python scripts/gen_default_art.py --primary "#E8547C" --paper "#FDF6F4"
+    # 方式一：只改这套默认素材的配色
+    python -m sgs_zhanbao.gen_default_art --primary "#3E8E6E" --paper "#F3FAF6"
 
-    # 方式二：用自己的三张源图重建（见 scripts/build_art.py）
-    python scripts/build_art.py --src 我的源图目录 --dst src/sgs_zhanbao/data/art/v2
+    # 方式二：用自己的三张源图重建切片（928 宽的 头部/中部可复用部分/尾部.png）
+    python scripts/build_art.py --src 我的源图目录
 
     # 方式三：不动包，运行时指过去
     set SGS_ART=D:\\我的素材      # 目录里放 head.png / mid.png / tail.png
 
 用法::
 
-    python scripts/gen_default_art.py                 # 写到包内默认位置
-    python scripts/gen_default_art.py --preview out.png
+    python -m sgs_zhanbao.gen_default_art                    # 写到包内默认位置
+    python -m sgs_zhanbao.gen_default_art --preview out.png  # 额外导出三件套拼接预览
 """
 
 from __future__ import annotations

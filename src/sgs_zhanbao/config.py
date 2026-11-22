@@ -141,19 +141,48 @@ def load_dotenv(path: str | Path | None = None, *, override: bool = False) -> di
     return injected
 
 
-# ---------------------------------------------------------------- 主题 / 品牌
+# ---------------------------------------------------------------- 配色
 
 @dataclass
-class Theme:
-    """战报视觉主题。改这里就能换皮，不用碰渲染逻辑。"""
+class Palette:
+    """渲染层用的每一个颜色 —— 配色的唯一来源。
 
-    name: str = "sgl-pink"
-    primary: str = "#E8547C"        # 玫红（标题、强调）
-    primary_dark: str = "#C43D63"
-    accent: str = "#F5A3BE"         # 浅粉（分割线、描边）
-    paper: str = "#FCEFEE"          # 纸面底色（也是渲染时的「缝隙检测色」）
-    ink: str = "#2B2126"
-    width: int = 928                # 设计稿逻辑宽度；出图倍率见 RenderConfig.scale
+    历史坑：CSS 里的色值原先写死在 ``render.py`` 的字符串里，同时另有一个
+    ``Theme`` dataclass 声称「改这里就能换皮」，但渲染层从没读过它 ——
+    改了静默无效。现在删掉 ``Theme``，所有颜色收在这一个 dataclass，
+    **默认值与旧 CSS 逐字节一致**，所以不改配置时出图完全不变。
+
+    换肤两条路：
+
+    1. 代码里传：``Config(palette=Palette(deep="#2C6B52", headline="#3E8E6E"))``
+    2. 环境变量：``SGS_COLOR_<字段大写>``，例 ``SGS_COLOR_HEADLINE=#3C78DC``
+       （只想改一两个色时用这个，不用写整套）
+
+    注意 ``paper`` 是页底色，接缝检测靠它判断「有没有漏色」。
+    换素材配色时要同步 ``gen_default_art --paper``，否则接缝处颜色对不上。
+    """
+
+    headline: str = "#c2405f"          # 主标题、比分数字
+    deep: str = "#a83752"              # 小标题、队名、正文强调
+    byline: str = "#c05a58"            # 记者署名
+    body: str = "#2b2126"              # 正文墨色
+    paper: str = "#FCEFEE"             # 页底色（缝隙检测就是查它露没露出来）
+    dot: str = "#f0a8bb"               # 名场面圆点、表格描边、虚线框
+    row_even: str = "#fffcfb"          # 表格偶数行
+    row_border: str = "#fae3ea"        # 表格行分隔线
+    card_bg: str = "#fffdfa"           # 明日预告卡片底
+    bottom_sec: str = "#9c2d4c"        # 底部信息区小标题 / 祝贺语
+    bottom_tomorrow: str = "#7c243c"   # 底部信息区预告文字
+
+    @classmethod
+    def from_env(cls) -> Palette:
+        """默认值 + 环境变量覆盖（``SGS_COLOR_DEEP`` 之类）。"""
+        p = cls()
+        for f in cls.__dataclass_fields__:
+            v = os.environ.get(f"SGS_COLOR_{f.upper()}")
+            if v and v.strip():
+                setattr(p, f, v.strip())
+        return p
 
 
 # ---------------------------------------------------------------- LLM
@@ -216,7 +245,7 @@ class RenderConfig:
 @dataclass
 class Config:
     llm: LLMConfig = field(default_factory=LLMConfig)
-    theme: Theme = field(default_factory=Theme)
+    palette: Palette = field(default_factory=Palette.from_env)
     render: RenderConfig = field(default_factory=RenderConfig)
     glossary_path: Path | None = None       # None = 用包内术语表
     prompt_path: Path | None = None         # None = 用包内提示词
@@ -254,9 +283,9 @@ class Config:
     def art_dir(self) -> Path:
         """版式三件套（head/mid/tail.png）所在目录。
 
-        默认用包内那份。仓库里自带的切片是从三国杀官方宣传图衍生的，
-        仅限个人 / 学习用途；商用请换成自己的素材，用 ``SGS_ART`` 指过去即可，
-        不用重新打包（详见 NOTICE）。
+        默认用包内那份 —— 由 ``gen_default_art.py`` 纯代码绘制，属本项目原创。
+        想换成自己的素材（改配色或整套美术），用 ``SGS_ART`` / ``--art`` 指过去即可，
+        不用重新打包。换进去的第三方素材授权由使用者自己负责，见 NOTICE。
         """
         if self.art_path:
             return Path(self.art_path)

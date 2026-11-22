@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -16,6 +17,23 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 import sgs_zhanbao  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def isolate_env(monkeypatch, tmp_path):
+    """每个测试都在干净的环境变量下跑。
+
+    否则开发者机器上已有的 SGS_ART / SGS_HOME / SGS_LLM_MODEL 会渗进测试，
+    在别人电脑上表现完全不同（例如 SGS_ART 指到别处，素材测试就找不到文件）。
+    SGS_* 与密钥类变量全部清掉；需要设值的测试自己用 monkeypatch.setenv。
+    """
+    for key in list(os.environ):
+        if key.startswith("SGS_") or key == "DEEPSEEK_API_KEY":
+            monkeypatch.delenv(key, raising=False)
+    # 别让测试往真实工作目录写东西
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("SGS_HOME", raising=False)
+    yield
 
 # ---------------------------------------------------------------- 转写稿样例
 

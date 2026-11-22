@@ -42,7 +42,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-from .config import Config
+from .config import Config, Palette
 from .models import ReportData
 
 # ---------------- 版式参数（928 宽设计稿） ----------------
@@ -57,12 +57,10 @@ TAIL_BOTTOM = 104    # 底部信息区离页面底边距离：让开尾图底部
 CARD_GAP = 24        # 底部信息区顶端与正文末行的最小间距
 
 FS_TITLE = 48
-FS_DATE = 34
 FS_SEC = 42
 FS_RESULT = 34
 FS_BODY = 32
 FS_TABLE = 28
-FS_NOTE = 18
 
 LH_BODY = 1.15
 
@@ -74,7 +72,9 @@ BYLINE_W = 660
 FS_BYLINE = 44
 
 FONT_FAMILY = "SGLKai"
-PAPER = "#FCEFEE"    # 页底色；接缝检测就是查这个颜色露出来没有
+# 默认页底色。接缝检测与报错信息里出现的色值必须来自 cfg.palette.paper，
+# 这个常量只是「没传 palette 时是什么」的兜底，别在 CSS 里直接用它。
+PAPER = "#FCEFEE"
 
 DEFAULT_REPORTER = "战报记者：王战答疑团-江南"
 
@@ -286,7 +286,30 @@ def _font_face(text: str, font_path: Path | None) -> str:
 
 # ======================== CSS ========================
 
-def build_css(mid_b64: str, text: str = "", font_path: Path | None = None) -> str:
+def _rgba(hex_color: str, alpha: float) -> str:
+    """把 ``#RRGGBB`` 转成 ``rgba(...)``，用于需要半透明的描边/垫色。"""
+    s = hex_color.strip().lstrip("#")
+    if len(s) == 3:
+        s = "".join(ch * 2 for ch in s)
+    if len(s) != 6:
+        raise ValueError(f"颜色要写成 #RRGGBB / #RGB，收到：{hex_color!r}")
+    r, g, b = (int(s[i : i + 2], 16) for i in (0, 2, 4))
+    return f"rgba({r}, {g}, {b}, {alpha:g})"
+
+
+def build_css(
+    mid_b64: str,
+    text: str = "",
+    font_path: Path | None = None,
+    palette: Palette | None = None,
+) -> str:
+    """生成整套 CSS。
+
+    所有颜色都从 ``palette`` 取，不再写死在字符串里 —— 历史上这些色值散在
+    CSS 里，改 ``Theme`` 静默无效。默认 Palette 的值与旧 CSS 逐字节一致，
+    所以不传 palette 时出图不变。
+    """
+    c = palette or Palette()
     font_face = _font_face(text, font_path)
     return f"""
 {font_face}
@@ -297,9 +320,9 @@ def build_css(mid_b64: str, text: str = "", font_path: Path | None = None) -> st
 
 body {{
   width: {W}px; margin: 0;
-  background: {PAPER};
+  background: {c.paper};
   font-family: "{FONT_FAMILY}", "KaiTi", "STKaiti", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-  color: #2b2126;
+  color: {c.body};
   font-weight: 700;
   letter-spacing: -0.045em;
   -webkit-font-smoothing: antialiased;
@@ -320,7 +343,7 @@ body {{
   line-height: 1;
   font-size: {FS_BYLINE}px;
   font-weight: 700;
-  color: #c05a58;
+  color: {c.byline};
   letter-spacing: 0;
 }}
 
@@ -348,29 +371,25 @@ body {{
 .headline {{
   position: absolute; left: 0; right: 0; top: {TITLE_TOP}px;
   text-align: center; font-size: {FS_TITLE}px; font-weight: 700;
-  color: #c2405f; line-height: 1.2; letter-spacing: -0.045em;
+  color: {c.headline}; line-height: 1.2; letter-spacing: -0.045em;
   text-wrap: balance; z-index: 6;
-}}
-.date {{
-  text-align: center; font-size: {FS_DATE}px; font-weight: 700;
-  color: #a83752; letter-spacing: .10em; margin-bottom: 12px;
 }}
 .sec {{
   text-align: center; font-size: {FS_SEC}px; font-weight: 700;
-  color: #a83752; margin: 10px 0 4px; letter-spacing: .04em;
+  color: {c.deep}; margin: 10px 0 4px; letter-spacing: .04em;
 }}
 .results {{ margin: 4px 0 2px; }}
 .result {{
-  font-size: {FS_RESULT}px; font-weight: 700; color: #a83752;
+  font-size: {FS_RESULT}px; font-weight: 700; color: {c.deep};
   text-align: center; line-height: 1.45;
 }}
-.result .score {{ color: #c2405f; padding: 0 .10em; font-variant-numeric: tabular-nums; }}
+.result .score {{ color: {c.headline}; padding: 0 .10em; font-variant-numeric: tabular-nums; }}
 
 p.txt {{
   font-size: {FS_BODY}px; line-height: {LH_BODY};
   text-align: justify; margin-bottom: 4px;
 }}
-p.txt b {{ color: #a83752; font-weight: 700; }}
+p.txt b {{ color: {c.deep}; font-weight: 700; }}
 
 .item {{
   position: relative; font-size: {FS_BODY}px; line-height: 1.3;
@@ -379,38 +398,33 @@ p.txt b {{ color: #a83752; font-weight: 700; }}
 .item .dot {{
   position: absolute; left: 2px; top: .58em;
   width: 8px; height: 8px; border-radius: 50%;
-  border: 3px solid #f0a8bb; background: #fff;
+  border: 3px solid {c.dot}; background: #fff;
 }}
-.item b {{ color: #a83752; }}
+.item b {{ color: {c.deep}; }}
 
 table.tb {{
   width: 100%; border-collapse: separate; border-spacing: 0;
-  border: 2px solid #f0a8bb; border-radius: 10px; overflow: hidden;
+  border: 2px solid {c.dot}; border-radius: 10px; overflow: hidden;
   font-size: {FS_TABLE}px; margin: 8px 0 12px;
 }}
-table.tb th {{
-  background: linear-gradient(180deg, #f7a8c0, #ef8fae);
-  color: #fff; font-weight: 700; padding: 8px 12px;
-  text-align: left; font-size: 37px;
-}}
 table.tb td {{
-  padding: 6px 12px; border-top: 1px solid #fae3ea;
+  padding: 6px 12px; border-top: 1px solid {c.row_border};
   vertical-align: top; line-height: 1.2;
 }}
-table.tb tr:nth-child(even) td {{ background: #fffcfb; }}
+table.tb tr:nth-child(even) td {{ background: {c.row_even}; }}
 table.tb td:first-child {{
-  font-weight: 700; color: #a83752; white-space: nowrap; width: 24%;
+  font-weight: 700; color: {c.deep}; white-space: nowrap; width: 24%;
 }}
 
 .tomorrow {{
   font-size: 30px; line-height: 1.35; text-align: justify;
-  padding: 16px 20px; background: #fffdfa;
-  border: 2px dashed #f0a8bb; border-radius: 10px;
+  padding: 16px 20px; background: {c.card_bg};
+  border: 2px dashed {c.dot}; border-radius: 10px;
 }}
 
 .win {{
   text-align: center; font-size: 32px; font-weight: 700;
-  color: #a83752; margin-top: 10px; letter-spacing: .02em;
+  color: {c.deep}; margin-top: 10px; letter-spacing: .02em;
 }}
 /* 底部信息区：压在尾图上，垫一层白色柔边（中间实、四周渐隐）让字更清楚 */
 .bottom-card {{
@@ -434,28 +448,23 @@ table.tb td:first-child {{
     linear-gradient(to bottom, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%);
   mask-composite: intersect;
 }}
-.bottom-card .sec {{ margin: 6px 0 2px; font-size: {FS_SEC}px; color: #9c2d4c; }}
+.bottom-card .sec {{ margin: 6px 0 2px; font-size: {FS_SEC}px; color: {c.bottom_sec}; }}
 .bottom-card .tomorrow {{
   padding: 0; border: 0; background: transparent;
-  font-size: 28px; line-height: 1.3; color: #7c243c;
+  font-size: 28px; line-height: 1.3; color: {c.bottom_tomorrow};
 }}
-.bottom-card .win {{ margin-top: 6px; font-size: 30px; color: #9c2d4c; }}
-.bottom-card .note {{ margin-top: 2px; font-size: 18px; color: #7a4a55; }}
+.bottom-card .win {{ margin-top: 6px; font-size: 30px; color: {c.bottom_sec}; }}
 .bottom-card table.tb {{
   margin: 2px 0 4px; font-size: 30px;
   border: 0;
 }}
 .bottom-card table.tb td {{
   padding: 3px 10px; line-height: 1.15;
-  border-top: 1px solid rgba(168, 55, 82, .28);
+  border-top: 1px solid {_rgba(c.deep, 0.28)};
   background: transparent;
 }}
 .bottom-card table.tb tr:first-child td {{ border-top: 0; }}
 .bottom-card table.tb tr:nth-child(even) td {{ background: transparent; }}
-.note {{
-  text-align: center; font-size: {FS_NOTE}px;
-  color: #b08f9a; margin-top: 10px;
-}}
 """
 
 
@@ -520,10 +529,11 @@ _SEAM_JS = """() => {
 }"""
 
 
-def _fix_seam(page, *, max_rounds: int = 3) -> int:
+def _fix_seam(page, *, paper: str = PAPER, max_rounds: int = 3) -> int:
     """保证「头 / 正文 / 尾」三段素材严丝合缝。
 
     量到缝隙就用 padding-bottom 补；补不掉就抛错，不让带缝的图流出去。
+    ``paper`` 只用于报错信息里说明「会漏出什么颜色」。
     """
     for _ in range(max_rounds):
         head_gap, tail_gap = page.evaluate(_SEAM_JS)
@@ -549,7 +559,7 @@ def _fix_seam(page, *, max_rounds: int = 3) -> int:
     if left[0] != 0 or left[1] != 0:
         raise RuntimeError(
             f"素材接缝对不齐（头-正文 {left[0]}px，正文-尾 {left[1]}px），"
-            f"会露出 {PAPER} 横条纹，已中止出图"
+            f"会露出 {paper} 横条纹，已中止出图"
         )
     return 0
 
@@ -600,7 +610,7 @@ def build_html(data: Any, *, cfg: Config | None = None) -> str:
 
     # 只把真正用到的字做字体子集（正文 + 固定小标题），否则 HTML 会有十几 MB
     plain = re.sub(r"<[^>]+>", "", body_html)
-    css = build_css(mid_b64, plain, cfg.font())
+    css = build_css(mid_b64, plain, cfg.font(), cfg.palette)
 
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -656,7 +666,7 @@ def render(
                 page.goto(html_path.resolve().as_uri(), wait_until="load")
                 page.wait_for_timeout(cfg.render.settle_ms)
                 _fit_bottom_card(page, art_dir(cfg) / "tail.png")
-                _fix_seam(page)
+                _fix_seam(page, paper=cfg.palette.paper)
                 page.screenshot(path=str(tmp_path), full_page=True)
             finally:
                 browser.close()

@@ -11,7 +11,7 @@ from sgs_zhanbao import config
 from sgs_zhanbao.config import (
     Config,
     LLMConfig,
-    Theme,
+    Palette,
     find_system_kaiti,
     home,
     load_api_key,
@@ -77,6 +77,26 @@ class TestHome:
     def test_default_is_cwd(self, tmp_path: Path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         assert home() == tmp_path.resolve()
+
+    def test_dotenv_is_scoped_to_working_dir(self, tmp_path: Path, monkeypatch):
+        """.env 从工作目录读，不是从仓库根读。
+
+        这条很重要：CLI 会 ``load_dotenv()``，如果不跟着工作目录走，
+        在别人机器上跑测试时会读到开发者仓库里的真实 .env（含密钥、
+        SGS_ART 等），测试结果就依赖个人环境了。
+        """
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".env").write_text("SGS_LLM_MODEL=from-workdir\n", encoding="utf-8")
+        load_dotenv()
+        assert os.environ["SGS_LLM_MODEL"] == "from-workdir"
+
+    def test_dotenv_not_read_from_elsewhere(self, tmp_path: Path, monkeypatch):
+        other = tmp_path / "other"
+        other.mkdir()
+        (other / ".env").write_text("SGS_LLM_MODEL=should-not-load\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        load_dotenv()
+        assert "SGS_LLM_MODEL" not in os.environ
 
     def test_env_override(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("SGS_HOME", str(tmp_path))
@@ -185,8 +205,54 @@ class TestResourcePaths:
         assert Config().prompt_dir() == tmp_path
 
 
-class TestTheme:
-    def test_defaults(self):
-        t = Theme()
-        assert t.width == 928
-        assert t.paper.startswith("#")
+class TestPalette:
+    def test_every_field_reaches_css(self):
+        """Palette 的每个字段都必须真的被渲染层读到。
+
+        这条是防「Theme 式死配置」的回归测试：历史上 Theme 定义了 primary/
+        accent/ink 等一堆字段，CSS 里一个都没用，改它静默无效。
+        做法：把每个字段换成独一无二的颜色，检查它出现在 CSS 里。
+        """
+        from sgs_zhanbao.render import build_css
+
+        probe = Palette(**{
+            f: f"#{i:02X}{i * 3 % 256:02X}{200 - i:02X}"
+            for i, f in enumerate(Palette.__dataclass_fields__)
+        })
+        css = build_css("AAA", "文字", None, probe)
+        dead = [f for f, v in probe.__dict__.items() if v.lower() not in css.lower()]
+        assert not dead, f"这些配色字段没有被渲染层使用：{dead}"
+
+    def test_defaults_match_legacy_css(self):
+        """默认色值必须与历史写死的 CSS 一致（换配置层不该改变出图）。"""
+        p = Palette()
+        assert p.headline == "#c2405f"
+        assert p.deep == "#a83752"
+        assert p.paper == "#FCEFEE"
+
+    def test_env_override_single_field(self, monkeypatch):
+        monkeypatch.setenv("SGS_COLOR_HEADLINE", "#3C78DC")
+        p = Palette.from_env()
+        assert p.headline == "#3C78DC"
+        assert p.deep == Palette().deep, "只该覆盖被点到的那一个"
+
+    def test_env_override_ignored_when_blank(self, monkeypatch):
+        monkeypatch.setenv("SGS_COLOR_HEADLINE", "   ")
+        assert Palette.from_env().headline == Palette().headline
+
+    def test_config_uses_env_palette(self, monkeypatch):
+        monkeypatch.setenv("SGS_COLOR_DEEP", "#2C6B52")
+        assert Config().palette.deep == "#2C6B52"
+
+    def test_palette_reaches_css(self):
+        """这条是重点：历史上 Theme 定义了但 CSS 不读，改色静默无效。"""
+        from sgs_zhanbao.render import build_css
+
+        custom = Palette(headline="#00ff00", deep="#0000ff", paper="#ff0000")
+        css = build_css("AAA", "文字", None, custom)
+        assert "#00ff00" in css
+        assert "#0000ff" in css
+        assert "#ff0000" in css
+        # 默认色不该再出现
+        assert "#c2405f" not in css
+        assert "#a83752" not in css
