@@ -1,0 +1,110 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sgs-zhanbao"
+version = "1.0.0"
+description = "三国杀赛事战报生成工作流：转写稿 → 校对 → 结构化 → 长图"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "chenlockyer" }]
+keywords = ["sanguosha", "sgs", "report", "asr", "llm", "deepseek", "playwright", "esports"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Multimedia :: Graphics :: Presentation",
+  "Topic :: Text Processing :: Linguistic",
+]
+
+dependencies = [
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+# 出图：HTML/CSS → PNG
+render = [
+  "playwright>=1.40",
+  "fonttools>=4.40",
+]
+# 本地录音 / 离线转写（Windows 优先）
+asr = [
+  "numpy>=1.24",
+  "PyAudioWPatch>=0.2.12; sys_platform == 'win32'",
+  "sherpa-onnx>=1.10",
+]
+# 素材重建（build_art.py）
+art = [
+  "numpy>=1.24",
+  "Pillow>=10.0",
+]
+# 开发
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5",
+]
+all = [
+  "playwright>=1.40",
+  "fonttools>=4.40",
+  "numpy>=1.24",
+  "Pillow>=10.0",
+  "PyAudioWPatch>=0.2.12; sys_platform == 'win32'",
+  "sherpa-onnx>=1.10",
+  "pytest>=8.0",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+sgs-zhanbao = "sgs_zhanbao.cli:main"
+sgs-zhanbao-local = "sgs_zhanbao.local:main"
+sgs-zhanbao-live = "sgs_zhanbao.live:main"
+sgs-zhanbao-build-art = "sgs_zhanbao.build_art:main"
+
+[project.urls]
+Homepage = "https://github.com/chenlockyer/sgs-zhanbao"
+Repository = "https://github.com/chenlockyer/sgs-zhanbao"
+Issues = "https://github.com/chenlockyer/sgs-zhanbao/issues"
+Changelog = "https://github.com/chenlockyer/sgs-zhanbao/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+sgs_zhanbao = [
+  "data/glossary.yaml",
+  "data/prompts/*.md",
+  "data/art/v2/*.png",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["error::DeprecationWarning:sgs_zhanbao.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "ARG", "PTH"]
+ignore = [
+  "E501",    # 行宽交给 formatter
+  "B008",    # 函数默认值里调用（dataclass field 需要）
+  "PTH123",  # open() 在某些场景更直观
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG"]

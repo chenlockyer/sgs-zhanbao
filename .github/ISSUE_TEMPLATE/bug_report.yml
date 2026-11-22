@@ -1,0 +1,76 @@
+name: 问题反馈
+description: 出图不对 / 校对漏字 / 环境跑不起来
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        标题请写成「[bug] 校对：xxx」「[bug] 渲染：xxx」这种格式，方便定位是哪一步。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 一句话说清现象，以及你期望的结果。
+      placeholder: 跑 run 之后战报里出现了「谋张二」这种看不懂的词，期望是略去或还原成正确武将名。
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 怎么复现
+      description: 完整命令。
+      render: shell
+      placeholder: |
+        sgs-zhanbao run --transcript voice2text/xxx.txt --score "第一场：A 14:10 B"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: step
+    attributes:
+      label: 涉及哪一步
+      options:
+        - 校对 proofread（漏校 / 误校 / 改了玩梗）
+        - 提取 extract（字段缺失 / 编造 / 出现看不懂的词）
+        - 渲染 render（版式 / 接缝 / 字体 / 尺寸）
+        - 环境（装不上 / doctor 不过 / 命令报错）
+        - 其它
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: 环境自检输出
+      description: 把 `sgs-zhanbao doctor` 的完整输出贴进来（不含密钥，doctor 只打印前后几位）。
+      render: shell
+      placeholder: 运行 sgs-zhanbao doctor
+    validations:
+      required: true
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: 报错信息
+      description: 完整 traceback，别截断。没有可留空。
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充材料
+      description: |
+        * 版式问题：贴一张出问题的图（**先打码**掉不该公开的内容）
+        * 校对问题：贴那一段原文 + `corrections.json` 里对应的那条
+        * 提取问题：贴 `report.json` 的相关字段
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 隐私确认
+      options:
+        - label: 我没有上传真实逐字稿、成品原图或 .env；示例内容已脱敏
+          required: true

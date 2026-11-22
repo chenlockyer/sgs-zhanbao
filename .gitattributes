@@ -1,0 +1,30 @@
+# 仓库内统一 LF，检出时按平台处理（Windows 上 autocrlf 会把 .py 变成 CRLF，
+# 导致 diff 噪音和跨平台字节比较失败）
+* text=auto eol=lf
+
+# 二进制：绝不做换行转换，否则素材校验和字节一致性测试会莫名失败
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ttf binary
+*.otf binary
+*.onnx binary
+*.wav binary
+
+# 文本类显式声明，方便 GitHub 正确识别语言
+*.py text
+*.md text
+*.yaml text
+*.yml text
+*.json text
+*.txt text
+*.css text
+*.html text
+*.cfg text
+*.ini text
+.env.example text
+
+# 导出/锁文件不参与语言统计
+src/sgs_zhanbao.egg-info/** linguist-documentation
+examples/example.png linguist-generated
